@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String?  @unique
+  name      String?
+  provider  String? // "google" o "anon"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  role      Role     @default(USER)
+  reports   Report[]
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  description String
+  department  String // Ej: "La Paz", "Cochabamba"
+  city        String
+  policeName  String? // Nombre del efectivo
+  policeUnit  String? // Unidad policial
+  latitude    Float? // Para el mapa
+  longitude   Float? // Para el mapa
+  isAnonymous Boolean      @default(true)
+  status      ReportStatus @default(PENDING) // Moderación
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relaciones
+  userId    String?
+  user      User?      @relation(fields: [userId], references: [id])
+  evidences Evidence[]
+}
+
+model Evidence {
+  id        String    @id @default(cuid())
+  url       String // Ruta en Supabase/AWS S3
+  type      MediaType
+  createdAt DateTime  @default(now())
+
+  // Relaciones
+  reportId String
+  report   Report @relation(fields: [reportId], references: [id])
+}
+
+// Modelo para documentos de transparencia
+model Document {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  category    String
+  fileUrl     String?
+  fileType    String?
+  fileSize    Int?
+  isPublic    Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@map("documents")
+}
+
+// Modelo para categorías de documentos
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("categories")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum ReportStatus {
+  PENDING // Denuncia enviada, en espera de moderación
+  APPROVED // Denuncia publicada
+  REJECTED // Rechazada por ser falsa/spam
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
